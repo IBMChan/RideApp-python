@@ -216,6 +216,292 @@
 #     app = RideAppGUI(root)
 #     root.mainloop()
 
+# from services.auth_service import AuthService
+# from services.ride_service import RideService
+# from services.vehicle_service import VehicleService
+# from models.user import Rider, Driver, UserRole
+# from models.vehicle import Vehicle
+# from models.ride import RideStatus
+
+
+# def main():
+#     auth_service = AuthService()
+#     ride_service = RideService()
+#     vehicle_service = VehicleService()
+#     logged_in_user = None
+#     active_vehicle_id = None   # track driver's chosen vehicle
+
+#     while True:   # keep looping back to main menu after logout
+#         logged_in_user = None
+#         active_vehicle_id = None
+
+#         # --- Main Menu ---
+#         while not logged_in_user:
+#             print("\n=== Welcome to RideApp ===")
+#             print("1. Login")
+#             print("2. Signup")
+#             print("3. Update Password")
+#             print("4. Exit")
+#             choice = input("Choose: ")
+
+#             if choice == "1":
+#                 email = input("Email: ")
+#                 pwd = input("Password: ")
+#                 logged_in_user = auth_service.login(email, pwd)
+
+#                 # If driver logs in, check for multiple vehicles
+#                 if logged_in_user and logged_in_user.role == UserRole.DRIVER:
+#                     vehicles = vehicle_service.load_vehicles()
+#                     my_vehicles = [v for v in vehicles.values() if v.get("driver_id") == logged_in_user.user_id]
+#                     if not my_vehicles:
+#                         print("⚠️ No vehicles registered. Please register before accepting rides.")
+#                     elif len(my_vehicles) == 1:
+#                         active_vehicle_id = my_vehicles[0]["vehicle_id"]
+#                     else:
+#                         print("\nYou have multiple vehicles. Please select one:")
+#                         for idx, v in enumerate(my_vehicles, 1):
+#                             print(f"{idx}. {v.get('make')} {v.get('model')} | Plate: {v.get('plate_number')}")
+#                         sel = int(input("Enter choice: ")) - 1
+#                         if 0 <= sel < len(my_vehicles):
+#                             active_vehicle_id = my_vehicles[sel]["vehicle_id"]
+#                         else:
+#                             print("Invalid choice, defaulting to first vehicle.")
+#                             active_vehicle_id = my_vehicles[0]["vehicle_id"]
+
+#             elif choice == "2":
+#                 name = input("Name: ")
+#                 email = input("Email: ")
+#                 phone = input("Phone (10 digits): ")
+#                 pwd = input("Password: ")
+#                 role = input("Role (rider/driver): ").lower()
+
+#                 next_id = auth_service.get_next_user_id()
+#                 if role == "rider":
+#                     user = Rider(next_id, name, email, phone, pwd, UserRole.RIDER)
+#                 elif role == "driver":
+#                     license_no = input("License Number: ")
+#                     user = Driver(next_id, name, email, phone, pwd, license_no)
+#                 else:
+#                     print("Invalid role!")
+#                     continue
+
+#                 try:
+#                     user.validate_user()
+#                     auth_service.register_user(user)
+#                 except ValueError as e:
+#                     print(f" {e}")
+
+#             elif choice == "3":
+#                 email = input("Enter your registered email: ")
+#                 if email in auth_service.get_users():
+#                     new_pwd = input("Enter new password: ")
+#                     auth_service.update_password(email, new_pwd)
+#                 else:
+#                     print("No account found with this email.")
+
+#             elif choice == "4":
+#                 print("Goodbye!")
+#                 return
+
+#         # --- Rider Menu ---
+#         while logged_in_user and logged_in_user.role == UserRole.RIDER:
+#             print("\n=== Rider Menu ===")
+#             print("1. Book Ride")
+#             print("2. Cancel Ride")
+#             print("3. Make Payment")
+#             print("4. Rate Ride")
+#             print("5. Ride History")
+#             print("6. Update Password")
+#             print("7. Logout")
+#             c = input("Choose: ")
+
+#             if c == "1":
+#                 # 🚨 Restriction: check if rider has unfinished rides
+#                 history = ride_service.get_rider_history(logged_in_user.user_id)
+#                 unfinished = [r for r in history if r.get("status") != "completed"]
+#                 if unfinished:
+#                     print("⚠️ You cannot book a new ride until all your previous rides are completed.")
+#                     continue
+
+#                 pickup = input("Pickup: ")
+#                 drop = input("Drop: ")
+#                 next_ride_id = ride_service.get_next_ride_id()
+#                 ride_id = ride_service.request_ride(logged_in_user.user_id, pickup, drop, ride_id=next_ride_id)
+#                 print(f"Ride booked with ID: {ride_id}")
+
+#             elif c == "2":
+#                 rid = input("Ride ID: ")
+#                 ride_service.cancel_ride(rid)
+
+#             elif c == "3":
+#                 rid = input("Ride ID: ")
+#                 amt = float(input("Amount: "))
+#                 method = input("Method (cash/card/upi): ")
+#                 ride_service.make_payment(rid, amt, method)
+
+#             elif c == "4":
+#                 rid = input("Ride ID: ")
+#                 score = int(input("Score (1-5): "))
+#                 comment = input("Comment: ")
+#                 ride_service.rate_ride(rid, logged_in_user.user_id, "driver1", score, comment)
+
+#             elif c == "5":
+#                 history = ride_service.get_rider_history(logged_in_user.user_id)
+#                 if not history:
+#                     print("No rides found.")
+#                 else:
+#                     for ride in history:
+#                         ride_id = ride.get("ride_id", "N/A")
+#                         print(f"\nRide {ride_id}: {ride}")
+
+#             elif c == "6":
+#                 new_pwd = input("Enter new password: ")
+#                 auth_service.update_password(logged_in_user.email, new_pwd)
+#                 logged_in_user.password = new_pwd
+
+#             elif c == "7":
+#                 print("Logging out...")
+#                 break   # return to main menu
+
+#         # --- Driver Menu ---
+#         while logged_in_user and logged_in_user.role == UserRole.DRIVER:
+#             print("\n=== Driver Menu ===")
+#             print("1. Accept a Ride")
+#             print("2. Change Ride Status")
+#             print("3. Register Vehicle")
+#             print("4. My Ride History")
+#             print("5. Update Password")
+#             print("6. Logout")
+#             c = input("Choose: ")
+
+#             if c == "1":
+#                 # 🚨 Restriction: driver can only accept 1 active ride
+#                 rides = list(ride_service.load_rides())
+#                 active_rides = [r for r in rides if r.get("driver_id") == logged_in_user.user_id and r.get("status") in ["accepted", "in_progress"]]
+#                 if active_rides:
+#                     print("⚠️ You already have an active ride. Complete it before accepting another.")
+#                     continue
+
+#                 requested_rides = [r for r in rides if r.get("status") == RideStatus.REQUESTED.value]
+#                 requested_rides = sorted(requested_rides, key=lambda x: x.get("ride_date", ""), reverse=True)[:5]
+#                 if not requested_rides:
+#                     print("No requested rides available.")
+#                 else:
+#                     print("\n--- Recent Requested Rides ---")
+#                     for idx, ride in enumerate(requested_rides, 1):
+#                         print(f"{idx}. Ride ID: {ride.get('ride_id')} | Pickup: {ride.get('pickup_location')} | Drop: {ride.get('drop_location')} | Fare: {ride.get('fare')}")
+#                     sel = input("Select a ride to accept (1-5): ")
+#                     try:
+#                         sel_idx = int(sel) - 1
+#                         if 0 <= sel_idx < len(requested_rides):
+#                             ride_to_accept = requested_rides[sel_idx]
+#                             ride_id = ride_to_accept["ride_id"]
+
+#                             if not active_vehicle_id:
+#                                 print("⚠️ You must register/select a vehicle before accepting rides.")
+#                                 continue
+
+#                             update = {
+#                                 "driver_id": logged_in_user.user_id,
+#                                 "vehicle_id": active_vehicle_id,
+#                                 "status": "accepted"
+#                             }
+#                             updated_ride = {**ride_to_accept, **update}
+#                             ride_service.save_ride(updated_ride)
+#                             print(f"Ride {ride_id} accepted!")
+#                             try:
+#                                 ride_service.send_ride_accepted_email(ride_id)
+#                             except Exception as e:
+#                                 print(f"Failed to send acceptance email: {e}")
+#                         else:
+#                             print("Invalid selection.")
+#                     except Exception as e:
+#                         print(f"Error: {e}")
+
+#             elif c == "2":
+#                 rides = list(ride_service.load_rides())
+#                 my_rides = [r for r in rides if r.get("driver_id") == logged_in_user.user_id and r.get("status") in ["accepted", "in_progress"]]
+#                 if not my_rides:
+#                     print("No rides to update.")
+#                 else:
+#                     print("\n--- My Active Rides ---")
+#                     for idx, ride in enumerate(my_rides, 1):
+#                         print(f"{idx}. Ride ID: {ride.get('ride_id')} | Status: {ride.get('status')} | Pickup: {ride.get('pickup_location')} | Drop: {ride.get('drop_location')}")
+#                     sel = input("Select a ride to update status (1-N): ")
+#                     try:
+#                         sel_idx = int(sel) - 1
+#                         if 0 <= sel_idx < len(my_rides):
+#                             ride = my_rides[sel_idx]
+#                             current_status = ride.get("status")
+#                             print("Choose new status:")
+#                             if current_status == "accepted":
+#                                 print("1. in_progress")
+#                                 print("2. completed")
+#                                 valid_status = ["in_progress", "completed"]
+#                             elif current_status == "in_progress":
+#                                 print("1. completed")
+#                                 valid_status = ["completed"]
+#                             else:
+#                                 print("Status cannot be changed.")
+#                                 continue
+#                             status_choice = input("Enter option: ")
+#                             try:
+#                                 status_idx = int(status_choice) - 1
+#                                 if 0 <= status_idx < len(valid_status):
+#                                     new_status = valid_status[status_idx]
+#                                     ride["status"] = new_status
+#                                     ride_service.save_ride(ride)
+#                                     print(f"Ride {ride.get('ride_id')} status updated to {new_status}.")
+#                                     if new_status == "completed":
+#                                         try:
+#                                             ride_service.send_ride_acceptance_email(ride)
+#                                             print("Email sent to rider after ride completed.")
+#                                         except Exception as e:
+#                                             print(f"Failed to send completion email: {e}")
+#                                 else:
+#                                     print("Invalid status selection.")
+#                             except Exception as e:
+#                                 print(f"Error: {e}")
+#                         else:
+#                             print("Invalid selection.")
+#                     except Exception as e:
+#                         print(f"Error: {e}")
+
+#             elif c == "3":
+#                 make = input("Vehicle Make: ")
+#                 model = input("Vehicle Model: ")
+#                 plate = input("Plate Number: ")
+#                 color = input("Color: ")
+#                 year = int(input("Year: "))
+#                 next_vid = vehicle_service.get_next_vehicle_id()
+#                 v = Vehicle(make, model, plate, color, year)
+#                 vehicle_service.register_vehicle(logged_in_user.user_id, v, next_vid)
+#                 print("Vehicle registered successfully.")
+
+#             elif c == "4":
+#                 my_rides = list(ride_service.load_rides())
+#                 my_rides = [r for r in my_rides if r.get("driver_id") == logged_in_user.user_id]
+#                 if not my_rides:
+#                     print("No rides found.")
+#                 else:
+#                     print("\n--- My Ride History ---")
+#                     for ride in my_rides:
+#                         print(f"Ride {ride.get('ride_id')}: {ride}")
+
+#             elif c == "5":
+#                 new_pwd = input("Enter new password: ")
+#                 auth_service.update_password(logged_in_user.email, new_pwd)
+#                 logged_in_user.password = new_pwd
+
+#             elif c == "6":
+#                 print("Logging out...")
+#                 break   # return to main menu
+
+
+# if __name__ == "__main__":
+#     main()
+
+
 from services.auth_service import AuthService
 from services.ride_service import RideService
 from services.vehicle_service import VehicleService
@@ -229,59 +515,82 @@ def main():
     ride_service = RideService()
     vehicle_service = VehicleService()
     logged_in_user = None
+    active_vehicle_id = None   # track driver's chosen vehicle
 
-    while not logged_in_user:
-        print("\n=== Welcome to RideApp ===")
-        print("1. Login")
-        print("2. Signup")
-        print("3. Update Password")
-        print("4. Exit")
-        choice = input("Choose: ")
+    while True:   # keep looping back to main menu after logout
+        logged_in_user = None
+        active_vehicle_id = None
 
-        if choice == "1":
-            email = input("Email: ")
-            pwd = input("Password: ")
-            logged_in_user = auth_service.login(email, pwd)
+        # --- Main Menu ---
+        while not logged_in_user:
+            print("\n=== Welcome to RideApp ===")
+            print("1. Login")
+            print("2. Signup")
+            print("3. Update Password")
+            print("4. Exit")
+            choice = input("Choose: ")
 
-        elif choice == "2":
-            name = input("Name: ")
-            email = input("Email: ")
-            phone = input("Phone (10 digits): ")
-            pwd = input("Password: ")
-            role = input("Role (rider/driver): ").lower()
+            if choice == "1":
+                email = input("Email: ")
+                pwd = input("Password: ")
+                logged_in_user = auth_service.login(email, pwd)
 
-            # Generate next user_id with prefix 'U' and sequence
-            next_id = auth_service.get_next_user_id()
-            if role == "rider":
-                user = Rider(next_id, name, email, phone, pwd, UserRole.RIDER)
-            elif role == "driver":
-                license_no = input("License Number: ")
-                user = Driver(next_id, name, email, phone, pwd, license_no)
-            else:
-                print("Invalid role!")
-                continue
+                # If driver logs in, check for multiple vehicles
+                if logged_in_user and logged_in_user.role == UserRole.DRIVER:
+                    vehicles = vehicle_service.load_vehicles()
+                    my_vehicles = [v for v in vehicles.values() if v.get("driver_id") == logged_in_user.user_id]
+                    if not my_vehicles:
+                        print("⚠️ No vehicles registered. Please register before accepting rides.")
+                    elif len(my_vehicles) == 1:
+                        active_vehicle_id = my_vehicles[0]["vehicle_id"]
+                    else:
+                        print("\nYou have multiple vehicles. Please select one:")
+                        for idx, v in enumerate(my_vehicles, 1):
+                            print(f"{idx}. {v.get('make')} {v.get('model')} | Plate: {v.get('plate_number')}")
+                        sel = int(input("Enter choice: ")) - 1
+                        if 0 <= sel < len(my_vehicles):
+                            active_vehicle_id = my_vehicles[sel]["vehicle_id"]
+                        else:
+                            print("Invalid choice, defaulting to first vehicle.")
+                            active_vehicle_id = my_vehicles[0]["vehicle_id"]
 
-            try:
-                user.validate_user()
-                auth_service.register_user(user)
-            except ValueError as e:
-                print(f" {e}")
+            elif choice == "2":
+                name = input("Name: ")
+                email = input("Email: ")
+                phone = input("Phone (10 digits): ")
+                pwd = input("Password: ")
+                role = input("Role (rider/driver): ").lower()
 
-        elif choice == "3":
-            email = input("Enter your registered email: ")
-            if email in auth_service.get_users():
-                new_pwd = input("Enter new password: ")
-                auth_service.update_password(email, new_pwd)
-            else:
-                print("No account found with this email.")
+                next_id = auth_service.get_next_user_id()
+                if role == "rider":
+                    user = Rider(next_id, name, email, phone, pwd, UserRole.RIDER)
+                elif role == "driver":
+                    license_no = input("License Number: ")
+                    user = Driver(next_id, name, email, phone, pwd, license_no)
+                else:
+                    print("Invalid role!")
+                    continue
 
-        elif choice == "4":
-            print("Goodbye!")
-            return
+                try:
+                    user.validate_user()
+                    auth_service.register_user(user)
+                except ValueError as e:
+                    print(f" {e}")
 
+            elif choice == "3":
+                email = input("Enter your registered email: ")
+                if email in auth_service.get_users():
+                    new_pwd = input("Enter new password: ")
+                    auth_service.update_password(email, new_pwd)
+                else:
+                    print("No account found with this email.")
 
-    while logged_in_user:
-        if logged_in_user.role == UserRole.RIDER:
+            elif choice == "4":
+                print("Goodbye!")
+                return
+
+        # --- Rider Menu ---
+        while logged_in_user and logged_in_user.role == UserRole.RIDER:
             print("\n=== Rider Menu ===")
             print("1. Book Ride")
             print("2. Cancel Ride")
@@ -331,10 +640,10 @@ def main():
 
             elif c == "7":
                 print("Logging out...")
-                logged_in_user = None
+                break   # return to main menu
 
-
-        else:  # DRIVER MENU
+        # --- Driver Menu ---
+        while logged_in_user and logged_in_user.role == UserRole.DRIVER:
             print("\n=== Driver Menu ===")
             print("1. Accept a Ride")
             print("2. Change Ride Status")
@@ -345,8 +654,13 @@ def main():
             c = input("Choose: ")
 
             if c == "1":
-                # Show 5 most recent requested rides
+                # 🚨 Restriction: driver can only accept 1 active ride
                 rides = list(ride_service.load_rides())
+                active_rides = [r for r in rides if r.get("driver_id") == logged_in_user.user_id and r.get("status") in ["accepted", "in_progress"]]
+                if active_rides:
+                    print("⚠️ You already have an active ride. Complete it before accepting another.")
+                    continue
+
                 requested_rides = [r for r in rides if r.get("status") == RideStatus.REQUESTED.value]
                 requested_rides = sorted(requested_rides, key=lambda x: x.get("ride_date", ""), reverse=True)[:5]
                 if not requested_rides:
@@ -360,28 +674,20 @@ def main():
                         sel_idx = int(sel) - 1
                         if 0 <= sel_idx < len(requested_rides):
                             ride_to_accept = requested_rides[sel_idx]
-                            # Assign driver and update status
                             ride_id = ride_to_accept["ride_id"]
-                            vehicle_id = None
-                            # Find driver's vehicle
-                            vehicles = vehicle_service.load_vehicles()
-                            for v in vehicles.values():
-                                if v.get("driver_id") == logged_in_user.user_id:
-                                    vehicle_id = v.get("vehicle_id")
-                                    break
-                            if not vehicle_id:
-                                print("You must register a vehicle before accepting rides.")
-                                return
+
+                            if not active_vehicle_id:
+                                print("⚠️ You must register/select a vehicle before accepting rides.")
+                                continue
+
                             update = {
                                 "driver_id": logged_in_user.user_id,
-                                "vehicle_id": vehicle_id,
+                                "vehicle_id": active_vehicle_id,
                                 "status": "accepted"
                             }
-                            # Remove fields that should be null on request
                             updated_ride = {**ride_to_accept, **update}
                             ride_service.save_ride(updated_ride)
                             print(f"Ride {ride_id} accepted!")
-                            # Send acceptance email to rider
                             try:
                                 ride_service.send_ride_accepted_email(ride_id)
                             except Exception as e:
@@ -392,7 +698,6 @@ def main():
                         print(f"Error: {e}")
 
             elif c == "2":
-                # Change ride status for rides assigned to this driver
                 rides = list(ride_service.load_rides())
                 my_rides = [r for r in rides if r.get("driver_id") == logged_in_user.user_id and r.get("status") in ["accepted", "in_progress"]]
                 if not my_rides:
@@ -417,7 +722,7 @@ def main():
                                 valid_status = ["completed"]
                             else:
                                 print("Status cannot be changed.")
-                                return
+                                continue
                             status_choice = input("Enter option: ")
                             try:
                                 status_idx = int(status_choice) - 1
@@ -426,11 +731,10 @@ def main():
                                     ride["status"] = new_status
                                     ride_service.save_ride(ride)
                                     print(f"Ride {ride.get('ride_id')} status updated to {new_status}.")
-                                    # Send email only when status is updated to completed
                                     if new_status == "completed":
                                         try:
                                             ride_service.send_ride_acceptance_email(ride)
-                                            print("Email sent to rider after ride status updated to completed.")
+                                            print("Email sent to rider after ride completed.")
                                         except Exception as e:
                                             print(f"Failed to send completion email: {e}")
                                 else:
@@ -451,9 +755,9 @@ def main():
                 next_vid = vehicle_service.get_next_vehicle_id()
                 v = Vehicle(make, model, plate, color, year)
                 vehicle_service.register_vehicle(logged_in_user.user_id, v, next_vid)
+                print("Vehicle registered successfully.")
 
             elif c == "4":
-                # Fetch rides from DB where driver_id matches logged-in user
                 my_rides = list(ride_service.load_rides())
                 my_rides = [r for r in my_rides if r.get("driver_id") == logged_in_user.user_id]
                 if not my_rides:
@@ -470,98 +774,8 @@ def main():
 
             elif c == "6":
                 print("Logging out...")
-                logged_in_user = None
+                break   # return to main menu
 
 
 if __name__ == "__main__":
     main()
-
-
-
-# # from services.auth_service import AuthService
-# # from services.ride_service import RideService
-# # from services.payment_service import PaymentService
-# # from models.user import User, UserRole
-
-# # def main():
-# #     auth_service = AuthService()
-# #     ride_service = RideService()
-# #     payment_service = PaymentService()
-# #     logged_in_user = None
-
-# #     while not logged_in_user:
-# #         print("\n1. Login\n2. Signup\n3. Update Password\n4. Exit")
-# #         choice = input("Choose: ")
-
-# #         if choice == "1":
-# #             email = input("Email: ")
-# #             pwd = input("Password: ")
-# #             logged_in_user = auth_service.login(email, pwd)
-
-# #         elif choice == "2":
-# #             name = input("Name: ")
-# #             email = input("Email: ")
-# #             phone = input("Phone: ")
-# #             pwd = input("Password: ")
-# #             role = input("Role (rider/driver): ").lower()
-# #             role_enum = UserRole.RIDER if role == "rider" else UserRole.DRIVER
-# #             license_no = input("License (if driver): ") if role_enum == UserRole.DRIVER else ""
-# #             user = User(f"u{len(auth_service.get_users())+1}", name, email, phone, pwd, role_enum, license_no)
-# #             auth_service.register_user(user)
-
-# #         elif choice == "3":  # 🔹 Update Password from login screen
-# #             email = input("Enter your registered email: ")
-# #             if email in auth_service.get_users():
-# #                 new_pwd = input("Enter new password: ")
-# #                 auth_service.update_password(email, new_pwd)
-# #             else:
-# #                 print("No account found with this email.")
-
-# #         elif choice == "4":
-# #             print("Goodbye!")
-# #             return
-
-# #     # --- After login menu ---
-# #     while logged_in_user:
-# #         if logged_in_user.role == UserRole.RIDER:
-# #             print("\n1. Book Ride\n2. Cancel Ride\n3. Make Payment\n4. Rate Ride\n5. Ride History\n6. Update Password\n7. Logout")
-# #             c = input("Choose: ")
-
-# #             if c == "1":
-# #                 pickup = input("Pickup: ")
-# #                 drop = input("Drop: ")
-# #                 ride_service.request_ride(logged_in_user.user_id, pickup, drop)
-
-# #             elif c == "2":
-# #                 rid = input("Ride ID: ")
-# #                 ride_service.cancel_ride(rid)
-
-# #             elif c == "3":
-# #                 rid = input("Ride ID: ")
-# #                 amt = float(input("Amount: "))
-# #                 method = input("Method: ")
-# #                 payment_service.make_payment(rid, amt, method)
-
-# #             elif c == "4":
-# #                 rid = input("Ride ID: ")
-# #                 score = int(input("Score (1-5): "))
-# #                 comment = input("Comment: ")
-# #                 ride_service.rate_ride(rid, logged_in_user.user_id, "driver1", score, comment)
-
-# #             elif c == "5":
-# #                 history = ride_service.get_rider_history(logged_in_user.user_id)
-# #                 for r in history:
-# #                     print(r)
-
-# #             elif c == "6":  # 🔹 Update password while logged in
-# #                 new_pwd = input("Enter new password: ")
-# #                 auth_service.update_password(logged_in_user.email, new_pwd)
-# #                 logged_in_user.password = new_pwd  # update current session
-
-# #             elif c == "7":
-# #                 logged_in_user = None
-# #                 print("Logged out.")
-
-
-# # if __name__ == "__main__":
-# #     main()
