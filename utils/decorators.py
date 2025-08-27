@@ -1,6 +1,6 @@
 import functools
 import datetime
-
+#usage of decorator to assign time stamp for attributes.
 def log_action(action: str):
     def decorator(func):
         @functools.wraps(func)

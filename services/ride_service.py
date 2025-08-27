@@ -7,7 +7,7 @@ from utils.db import rides_col, users_col, vehicles_col
 import io
 import os
 from bson import ObjectId
-import smtplib
+import smtplib 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 
 
-
+#email with no attachments
 
 class RideService:
     def send_ride_accepted_email(self, ride_id: str):
@@ -39,7 +39,7 @@ class RideService:
                 # Fetch ride (status must be 'accepted')
                 ride = rides_col.find_one({"ride_id": ride_id, "status": "accepted"})
                 if not ride:
-                        print("❌ Ride not found or not accepted.")
+                        print(" Ride not found or not accepted.")
                         return
 
                 # Fetch rider and driver from users collection
@@ -48,7 +48,7 @@ class RideService:
                 vehicle = vehicles_col.find_one({"vehicle_id": ride["vehicle_id"]})
 
                 if not (rider and driver and vehicle):
-                        print("❌ Missing rider/driver/vehicle details.")
+                        print("Missing rider/driver/vehicle details.")
                         return
 
                 # Build Email
@@ -60,7 +60,7 @@ class RideService:
                 html = f"""
                 <html>
                     <body style='font-family: Arial, sans-serif;'>
-                        <h2 style='color: #003366;'>✅ Your Ride has been accepted!</h2>
+                        <h2 style='color: #003366;'> Your Ride has been accepted!</h2>
                         <h3>Ride Details</h3>
                         <table border='1' cellpadding='6' cellspacing='0' style='border-collapse: collapse; width: 100%;'>
                             <tr><th>Ride ID</th><td>{ride['ride_id']}</td></tr>
@@ -92,10 +92,13 @@ class RideService:
                                 server.starttls()
                                 server.login(SENDER_EMAIL, SENDER_PASSWORD)
                                 server.send_message(msg)
-                        print(f"📩 Email sent to {rider['email']} for Ride ID {ride['ride_id']}")
+                        print(f" Email sent to {rider['email']} for Ride ID {ride['ride_id']}")
                 except Exception as e:
-                        print(f"❌ Failed to send acceptance email: {e}")
-    def send_ride_acceptance_email(self, ride_doc):
+                        print(f" Failed to send acceptance email: {e}")
+
+
+
+    def send_ride_completed_email(self, ride_doc):
         load_dotenv(dotenv_path=r'C:/Users/ChandanaG/OneDrive - IBM/Desktop/Ride_app/env/.env')
         sender_email = os.getenv("sender_email")
         app_password = os.getenv("app_password")
@@ -108,7 +111,6 @@ class RideService:
             print("Rider email not found, cannot send completion email.")
             return
 
-        # PDF 1: Completed Ride Details (Beautified key-value pairs)
         pdf1_buffer = io.BytesIO()
         doc1 = SimpleDocTemplate(pdf1_buffer, pagesize=letter)
         styles = getSampleStyleSheet()

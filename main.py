@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
-
 from services.auth_service import AuthService
 from services.ride_service import RideService
 from services.vehicle_service import VehicleService
@@ -12,7 +11,7 @@ from models.ride import RideStatus
 class RideAppGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("RideApp")
+        self.root.title("Welcome to RideApp")
 
         # Services
         self.auth_service = AuthService()
@@ -22,12 +21,11 @@ class RideAppGUI:
         self.logged_in_user = None
 
         # Main Frame
-        self.frame = tk.Frame(self.root, padx=20, pady=20)
+        self.frame = tk.Frame(self.root, padx=40, pady=40)
         self.frame.pack()
 
         self.show_main_menu()
 
-    # ------------------- LOGIN / SIGNUP / RESET ---------------------
     def show_main_menu(self):
         self.clear_frame()
         tk.Label(self.frame, text="=== Welcome to RideApp ===", font=("Arial", 14, "bold")).pack(pady=10)
@@ -77,11 +75,10 @@ class RideAppGUI:
         if email in self.auth_service.get_users():
             new_pwd = simpledialog.askstring("Update Password", "Enter new password:", show="*")
             self.auth_service.update_password(email, new_pwd)
-            messagebox.showinfo("Password", " Password updated successfully")
+            messagebox.showinfo("Password", "Password updated successfully")
         else:
-            messagebox.showerror("Password", " No account found with this email.")
+            messagebox.showerror("Password", "No account found with this email.")
 
-    # ------------------- DASHBOARD ---------------------
     def show_dashboard(self):
         self.clear_frame()
         if self.logged_in_user.role == UserRole.RIDER:
@@ -105,32 +102,31 @@ class RideAppGUI:
             tk.Button(self.frame, text="Update Password", width=25, command=self.update_password).pack(pady=5)
             tk.Button(self.frame, text="Logout", width=25, command=self.logout).pack(pady=5)
 
-    # ------------------- RIDER FUNCTIONS ---------------------
     def book_ride(self):
         pickup = simpledialog.askstring("Book Ride", "Pickup:")
         drop = simpledialog.askstring("Book Ride", "Drop:")
         next_ride_id = self.ride_service.get_next_ride_id()
         ride_id = self.ride_service.request_ride(self.logged_in_user.user_id, pickup, drop, ride_id=next_ride_id)
-        messagebox.showinfo("Book Ride", f" Ride booked with ID: {ride_id}")
+        messagebox.showinfo("Book Ride", f"Ride booked with ID: {ride_id}")
 
     def cancel_ride(self):
         rid = simpledialog.askstring("Cancel Ride", "Enter Ride ID:")
         self.ride_service.cancel_ride(rid)
-        messagebox.showinfo("Cancel Ride", f" Ride {rid} cancelled")
+        messagebox.showinfo("Cancel Ride", f"Ride {rid} cancelled")
 
     def make_payment(self):
         rid = simpledialog.askstring("Payment", "Ride ID:")
         amt = float(simpledialog.askstring("Payment", "Amount:"))
         method = simpledialog.askstring("Payment", "Method (cash/card/upi):")
         self.ride_service.make_payment(rid, amt, method)
-        messagebox.showinfo("Payment", f" Payment of {amt} done for Ride {rid}")
+        messagebox.showinfo("Payment", f"Payment of {amt} done for Ride {rid}")
 
     def rate_ride(self):
         rid = simpledialog.askstring("Rate Ride", "Ride ID:")
         score = int(simpledialog.askstring("Rate Ride", "Score (1-5):"))
         comment = simpledialog.askstring("Rate Ride", "Comment:")
         self.ride_service.rate_ride(rid, self.logged_in_user.user_id, "driver1", score, comment)
-        messagebox.showinfo("Rate Ride", f" Rated Ride {rid}")
+        messagebox.showinfo("Rate Ride", f"Rated Ride {rid}")
 
     def ride_history(self):
         history = self.ride_service.get_rider_history(self.logged_in_user.user_id)
@@ -140,7 +136,6 @@ class RideAppGUI:
             hist = "\n".join([f"Ride {r.get('ride_id')}: {r}" for r in history])
             messagebox.showinfo("History", hist)
 
-
     def accept_ride(self):
         rides = list(self.ride_service.load_rides())
         requested_rides = [r for r in rides if r.get("status") == RideStatus.REQUESTED.value]
@@ -148,7 +143,6 @@ class RideAppGUI:
             messagebox.showinfo("Accept Ride", "No requested rides available.")
             return
 
-        # Choose first ride for simplicity
         ride_to_accept = requested_rides[0]
         vehicle_id = None
         for v in self.vehicle_service.load_vehicles().values():
@@ -158,6 +152,7 @@ class RideAppGUI:
         if not vehicle_id:
             messagebox.showerror("Accept Ride", "You must register a vehicle first.")
             return
+
         update = {
             "driver_id": self.logged_in_user.user_id,
             "vehicle_id": vehicle_id,
@@ -165,6 +160,12 @@ class RideAppGUI:
         }
         updated_ride = {**ride_to_accept, **update}
         self.ride_service.save_ride(updated_ride)
+
+        try:
+            self.ride_service.send_ride_accepted_email(updated_ride["ride_id"])
+        except Exception as e:
+            messagebox.showerror("Email Error", f"Failed to send acceptance email: {e}")
+
         messagebox.showinfo("Accept Ride", f"✅ Ride {ride_to_accept['ride_id']} accepted!")
 
     def change_ride_status(self):
@@ -173,13 +174,22 @@ class RideAppGUI:
         if not my_rides:
             messagebox.showinfo("Change Status", "No rides to update.")
             return
-        ride = my_rides[0]  # pick first for simplicity
+        ride = my_rides[0]
         if ride["status"] == "accepted":
             ride["status"] = "in_progress"
         elif ride["status"] == "in_progress":
             ride["status"] = "completed"
+
         self.ride_service.save_ride(ride)
-        messagebox.showinfo("Change Status", f" Ride {ride['ride_id']} updated to {ride['status']}")
+
+        # Email integration for completed rides
+        if ride["status"] == "completed":
+            try:
+                self.ride_service.send_ride_completed_email(ride)
+            except Exception as e:
+                messagebox.showerror("Email Error", f"Failed to send completion email: {e}")
+
+        messagebox.showinfo("Change Status", f"Ride {ride['ride_id']} updated to {ride['status']}")
 
     def register_vehicle(self):
         make = simpledialog.askstring("Vehicle", "Make:")
@@ -190,7 +200,7 @@ class RideAppGUI:
         next_vid = self.vehicle_service.get_next_vehicle_id()
         v = Vehicle(make, model, plate, color, year)
         self.vehicle_service.register_vehicle(self.logged_in_user.user_id, v, next_vid)
-        messagebox.showinfo("Vehicle", f" Vehicle {plate} registered successfully")
+        messagebox.showinfo("Vehicle", f"Vehicle {plate} registered successfully")
 
     def driver_history(self):
         my_rides = list(self.ride_service.load_rides())
@@ -214,6 +224,7 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = RideAppGUI(root)
     root.mainloop()
+
 
 # from services.auth_service import AuthService
 # from services.ride_service import RideService
@@ -453,7 +464,7 @@ if __name__ == "__main__":
 #                                     print(f"Ride {ride.get('ride_id')} status updated to {new_status}.")
 #                                     if new_status == "completed":
 #                                         try:
-#                                             ride_service.send_ride_acceptance_email(ride)
+#                                             ride_service.send_ride_completed_email(ride)
 #                                             print("Email sent to rider after ride completed.")
 #                                         except Exception as e:
 #                                             print(f"Failed to send completion email: {e}")

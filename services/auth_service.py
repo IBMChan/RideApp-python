@@ -1,3 +1,4 @@
+#to register and authenticate and register a new user. 
 from typing import Dict, Optional
 from models.user import Rider, Driver, UserRole, AbstractUser
 from utils.db import users_col
@@ -6,9 +7,8 @@ from utils.db import users_col
 class AuthService:
     def __init__(self):
         pass
-
+#creating new user, assigning user id with user details
     def get_next_user_id(self) -> str:
-        # Find max user_id in db, format: U001, U002, ...
         users = list(users_col.find())
         max_id = 0
         for u in users:

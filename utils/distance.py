@@ -1,8 +1,8 @@
 import math
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    # Haversine formula (approx)
 
+#random value for time being
     return 15  # km
 
 
